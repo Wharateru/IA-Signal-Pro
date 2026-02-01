@@ -1,0 +1,328 @@
+:root {
+    --primary: #3498db;
+    --secondary: #2c3e50;
+    --success: #2ecc71;
+    --danger: #e74c3c;
+    --warning: #f1c40f;
+    --ad-color: #e67e22;
+    --free-color: #27ae60;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    color: #ecf0f1;
+    line-height: 1.6;
+    min-height: 100vh;
+}
+
+.header {
+    background: rgba(44, 62, 80, 0.95);
+    padding: 1.5rem;
+    text-align: center;
+    backdrop-filter: blur(10px);
+    border-bottom: 3px solid var(--primary);
+    position: relative;
+}
+
+.logo {
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.counter {
+    background: var(--ad-color);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 50px;
+    display: inline-block;
+    margin-top: 1rem;
+    font-weight: bold;
+}
+
+.main-container {
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+    display: grid;
+    gap: 2rem;
+}
+
+.signal-card {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 15px;
+    padding: 2rem;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.3s ease;
+}
+
+.signal-card.free {
+    border-top: 5px solid var(--free-color);
+}
+
+.signal-card.ad {
+    border-top: 5px solid var(--ad-color);
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(230, 126, 34, 0.4); }
+    70% { box-shadow: 0 0 0 10px rgba(230, 126, 34, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(230, 126, 34, 0); }
+}
+
+.signal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.signal-type {
+    padding: 0.5rem 1rem;
+    border-radius: 50px;
+    font-weight: bold;
+    font-size: 0.9rem;
+}
+
+.free-signal {
+    background: var(--free-color);
+    color: white;
+}
+
+.ad-signal {
+    background: var(--ad-color);
+    color: white;
+}
+
+.countdown {
+    font-size: 3.5rem;
+    font-weight: bold;
+    color: var(--warning);
+    text-align: center;
+    margin: 1.5rem 0;
+    font-family: 'Courier New', monospace;
+    text-shadow: 0 0 10px rgba(241, 196, 15, 0.5);
+}
+
+.signal-info {
+    background: rgba(52, 152, 219, 0.1);
+    padding: 1.5rem;
+    border-radius: 10px;
+    margin: 1rem 0;
+    border-left: 4px solid var(--primary);
+}
+
+.signal-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 2rem;
+    flex-wrap: wrap;
+}
+
+.btn {
+    padding: 1rem 2rem;
+    border: none;
+    border-radius: 50px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    flex: 1;
+    min-width: 200px;
+}
+
+.btn-primary {
+    background: linear-gradient(45deg, var(--primary), #2980b9);
+    color: white;
+}
+
+.btn-success {
+    background: linear-gradient(45deg, var(--success), #27ae60);
+    color: white;
+}
+
+.btn-warning {
+    background: linear-gradient(45deg, var(--warning), #d35400);
+    color: white;
+}
+
+.btn-ad {
+    background: linear-gradient(45deg, var(--ad-color), #d35400);
+    color: white;
+}
+
+.btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.btn:active {
+    transform: translateY(-1px);
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Modal de Propaganda */
+.ad-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+
+.ad-modal-content {
+    background: white;
+    color: #333;
+    padding: 2rem;
+    border-radius: 15px;
+    max-width: 500px;
+    width: 90%;
+    text-align: center;
+    position: relative;
+}
+
+.ad-modal-header {
+    background: var(--ad-color);
+    color: white;
+    padding: 1rem;
+    border-radius: 10px 10px 0 0;
+    margin: -2rem -2rem 2rem -2rem;
+}
+
+.ad-body {
+    padding: 1.5rem;
+    background: #f8f9fa;
+    border-radius: 10px;
+    margin: 1rem 0;
+}
+
+.ad-timer {
+    font-size: 2rem;
+    color: var(--ad-color);
+    font-weight: bold;
+    margin: 1rem 0;
+}
+
+.close-ad {
+    background: var(--danger);
+    color: white;
+    border: none;
+    padding: 0.8rem 1.5rem;
+    border-radius: 50px;
+    cursor: pointer;
+    font-weight: bold;
+    margin-top: 1rem;
+    display: none;
+}
+
+.progress-bar {
+    height: 5px;
+    background: #ddd;
+    border-radius: 5px;
+    margin: 1rem 0;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: var(--ad-color);
+    width: 0%;
+    transition: width 1s linear;
+}
+
+.history-section {
+    margin-top: 3rem;
+}
+
+.history-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.history-item {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 1rem;
+    border-radius: 8px;
+    border-left: 4px solid;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.ad-icon {
+    color: var(--ad-color);
+    font-size: 1.2rem;
+}
+
+.free-icon {
+    color: var(--free-color);
+    font-size: 1.2rem;
+}
+
+.call { border-left-color: var(--success); }
+.put { border-left-color: var(--danger); }
+
+.ad-space {
+    background: rgba(230, 126, 34, 0.1);
+    border: 2px solid var(--ad-color);
+    border-radius: 10px;
+    padding: 1.5rem;
+    text-align: center;
+    margin: 1.5rem 0;
+}
+
+.stats {
+    display: flex;
+    justify-content: space-around;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin: 2rem 0;
+}
+
+.stat-card {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 1.5rem;
+    border-radius: 10px;
+    text-align: center;
+    flex: 1;
+    min-width: 150px;
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--primary);
+}
+
+@media (max-width: 768px) {
+    .countdown { font-size: 2.5rem; }
+    .signal-actions { flex-direction: column; }
+    .btn { width: 100%; }
+    .signal-header { flex-direction: column; text-align: center; }
+}
