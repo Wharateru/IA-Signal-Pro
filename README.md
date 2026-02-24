@@ -1,6 +1,6 @@
-# IQ Signals - Site de Sinais para IQ Options
+# IA Sinais - Site de Sinais All Trades Pro
 
-Este é um site que fornece sinais de trading para a IQ Options, com um sistema de monetização baseado em propagandas.
+Este é um site que fornece sinais de trading para trades, com um sistema de monetização baseado em propagandas.
 
 ## Funcionalidades
 
