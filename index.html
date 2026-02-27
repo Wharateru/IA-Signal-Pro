@@ -5,7 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>All Trades Sinal Pro - Sinais Inteligentes IA</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Biblioteca Tesseract.js para OCR -->
+    <script src='https://unpkg.com/tesseract.js@4.0.2/dist/tesseract.min.js'></script>
     <style>
+        /* Seu CSS original (mantive igual, apenas adicionei uma classe para loading) */
         :root {
             --primary: #4361ee;
             --secondary: #3a0ca3;
@@ -129,7 +132,7 @@
             font-size: 3.5rem;
             margin-bottom: 20px;
             background: linear-gradient(to right, #fff, var(--success));
-           background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent;
             line-height: 1.2;
         }
@@ -301,6 +304,11 @@
             color: var(--primary);
         }
         
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
         /* Signal Section */
         .signal-section {
             padding: 80px 0;
@@ -355,8 +363,8 @@
             margin: 30px 0;
             font-family: 'Courier New', monospace;
             background: linear-gradient(to right, #4cc9f0, #f72585);
-           background-clip: text;
-           -webkit-text-fill-color: transparent;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
             text-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
         }
         
@@ -523,6 +531,21 @@
             margin: 20px auto;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
             border: 3px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        /* Loading Spinner */
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
         
         /* Responsive */
@@ -693,7 +716,7 @@
                     <h4>Pré-visualização do Print</h4>
                     <img id="imagePreview" class="preview-image" src="" alt="Preview">
                     <div style="margin-top: 20px;">
-                        <button class="btn btn-success" onclick="generateSignal()">
+                        <button class="btn btn-success" id="generateBtn" onclick="generateSignal()">
                             <i class="fas fa-bolt"></i> Gerar Sinal Deste Print
                         </button>
                         <button class="btn btn-outline" onclick="clearPreview()" style="margin-left: 10px;">
@@ -867,11 +890,12 @@
     </div>
 
     <script>
-        // Configurações
+        // ==================== CONFIGURAÇÕES ====================
         let currentPrint = null;
         let currentSignal = null;
         let history = [];
         let adCounter = 0;
+        let countdownInterval = null; // Para controlar o timer
         
         // Ativos para demonstração
         const assets = [
@@ -885,20 +909,19 @@
             { symbol: 'USOIL', name: 'Petróleo', icon: 'fas fa-gas-pump' }
         ];
         
-        // Inicialização
+        // ==================== INICIALIZAÇÃO ====================
         document.addEventListener('DOMContentLoaded', function() {
             setupDragAndDrop();
             loadHistory();
             loadAd();
             
-            // Adicionar animação de entrada
             const elements = document.querySelectorAll('.fade-in');
             elements.forEach((el, index) => {
                 el.style.animationDelay = `${index * 0.1}s`;
             });
         });
         
-        // Configurar drag and drop
+        // ==================== DRAG AND DROP ====================
         function setupDragAndDrop() {
             const dropZone = document.getElementById('dropZone');
             
@@ -920,24 +943,20 @@
                 }
             });
             
-            // Click no input de arquivo
             document.getElementById('fileInput').addEventListener('change', function(e) {
                 handleFileSelect(e.target.files);
             });
         }
         
-        // Manipular seleção de arquivo
         function handleFileSelect(files) {
             const file = files[0];
             if (!file) return;
             
-            // Verificar tamanho
             if (file.size > 5 * 1024 * 1024) {
                 showNotification('Arquivo muito grande! Máximo 5MB.', 'error');
                 return;
             }
             
-            // Verificar tipo
             if (!file.type.match('image.*')) {
                 showNotification('Por favor, selecione apenas imagens!', 'error');
                 return;
@@ -953,11 +972,9 @@
                     timestamp: new Date().toLocaleString('pt-BR')
                 };
                 
-                // Mostrar preview
                 document.getElementById('imagePreview').src = e.target.result;
                 document.getElementById('previewContainer').style.display = 'block';
                 
-                // Rolar suavemente para o preview
                 document.getElementById('previewContainer').scrollIntoView({ 
                     behavior: 'smooth',
                     block: 'center'
@@ -969,7 +986,6 @@
             reader.readAsDataURL(file);
         }
         
-        // Limpar preview
         function clearPreview() {
             document.getElementById('imagePreview').src = '';
             document.getElementById('previewContainer').style.display = 'none';
@@ -977,61 +993,105 @@
             showNotification('Print removido.', 'warning');
         }
         
-        // Gerar sinal
+        // ==================== FUNÇÃO PRINCIPAL DE ANÁLISE COM OCR ====================
+        async function analyzeAndGenerateSignal() {
+            if (!currentPrint) {
+                showNotification('Por favor, selecione um print primeiro!', 'error');
+                return false;
+            }
+            
+            // Desabilita o botão durante a análise
+            const generateBtn = document.getElementById('generateBtn');
+            const originalText = generateBtn.innerHTML;
+            generateBtn.innerHTML = '<span class="loading-spinner"></span> Analisando...';
+            generateBtn.disabled = true;
+            
+            try {
+                showNotification('Analisando imagem com IA...', 'warning');
+                
+                // Usa Tesseract para extrair texto da imagem
+                const { data: { text } } = await Tesseract.recognize(
+                    currentPrint.data,
+                    'por', // idioma português (pode ser 'eng' se os prints forem em inglês)
+                    {
+                        logger: m => console.log(m) // opcional, mostra progresso no console
+                    }
+                );
+                
+                console.log('Texto extraído:', text);
+                
+                // Lógica simples para determinar direção (CALL/PUT) com base no texto
+                let direction = 'CALL'; // padrão
+                if (text.toLowerCase().includes('put') || text.toLowerCase().includes('venda') || text.toLowerCase().includes('sell')) {
+                    direction = 'PUT';
+                }
+                
+                // Encontra ativo mencionado no texto (exemplo simples)
+                let assetSymbol = 'EUR/USD'; // padrão
+                if (text.includes('GBP')) assetSymbol = 'GBP/USD';
+                else if (text.includes('BTC') || text.includes('Bitcoin')) assetSymbol = 'BTC/USD';
+                else if (text.includes('ETH') || text.includes('Ethereum')) assetSymbol = 'ETH/USD';
+                else if (text.includes('XAU') || text.includes('Ouro') || text.includes('gold')) assetSymbol = 'XAU/USD';
+                else if (text.includes('AAPL') || text.includes('Apple')) assetSymbol = 'AAPL';
+                else if (text.includes('TSLA') || text.includes('Tesla')) assetSymbol = 'TSLA';
+                else if (text.includes('OIL') || text.includes('Petróleo') || text.includes('USOIL')) assetSymbol = 'USOIL';
+                
+                // Procura o ativo na lista
+                const asset = assets.find(a => a.symbol === assetSymbol) || assets[0];
+                
+                // Determina força e confiança baseado na quantidade de texto (simulação)
+                const strength = text.length > 100 ? 'ALTA' : (text.length > 50 ? 'MÉDIA' : 'BAIXA');
+                const confidence = Math.min(70 + text.length / 10, 99); // Exemplo: quanto mais texto, maior confiança
+                
+                currentSignal = {
+                    id: Date.now(),
+                    asset: asset,
+                    direction: direction,
+                    expiration: 1, // fixo em 1 minuto (ou poderia extrair do texto também)
+                    timestamp: new Date().toLocaleTimeString('pt-BR'),
+                    date: new Date().toLocaleDateString('pt-BR'),
+                    basedOnPrint: true,
+                    strength: strength,
+                    confidence: Math.floor(confidence)
+                };
+                
+                // Atualiza a interface
+                document.getElementById('signalCard').style.display = 'block';
+                document.getElementById('noSignal').style.display = 'none';
+                updateSignalDisplay();
+                startCountdown(); // inicia contagem de 60s
+                addToHistory(currentSignal);
+                
+                showNotification('Sinal gerado com base no print!', 'success');
+                return true;
+            } catch (error) {
+                console.error('Erro no OCR:', error);
+                showNotification('Erro ao analisar a imagem. Tente novamente.', 'error');
+                return false;
+            } finally {
+                // Reabilita o botão
+                generateBtn.innerHTML = originalText;
+                generateBtn.disabled = false;
+            }
+        }
+        
+        // ==================== GERAR SINAL (com controle de anúncios) ====================
         function generateSignal() {
             if (!currentPrint) {
                 showNotification('Por favor, selecione um print primeiro!', 'error');
+                document.getElementById('dropZone').scrollIntoView({ behavior: 'smooth', block: 'center' });
                 return;
             }
             
-            // Verificar se é hora de mostrar um anúncio (a cada 2 sinais)
             adCounter++;
             if (adCounter % 2 === 0) {
-                showAdModal();
-                return;
+                showAdModal(); // Mostra anúncio a cada 2 sinais
+            } else {
+                analyzeAndGenerateSignal(); // Chama a análise real
             }
-            
-            // Gerar sinal aleatório
-            const randomAsset = assets[Math.floor(Math.random() * assets.length)];
-            const directions = ['CALL', 'PUT'];
-            const randomDirection = directions[Math.floor(Math.random() * directions.length)];
-            const expiration = [1, 2, 5][Math.floor(Math.random() * 3)];
-            
-            currentSignal = {
-                id: Date.now(),
-                asset: randomAsset,
-                direction: randomDirection,
-                expiration: expiration,
-                timestamp: new Date().toLocaleTimeString('pt-BR'),
-                date: new Date().toLocaleDateString('pt-BR'),
-                basedOnPrint: true,
-                strength: ['ALTA', 'MÉDIA', 'BAIXA'][Math.floor(Math.random() * 3)],
-                confidence: Math.floor(Math.random() * 30) + 70 // 70-100%
-            };
-            
-            // Mostrar seção de sinais
-            document.getElementById('signalCard').style.display = 'block';
-            document.getElementById('noSignal').style.display = 'none';
-            
-            // Atualizar display
-            updateSignalDisplay();
-            
-            // Iniciar contagem regressiva
-            startCountdown();
-            
-            // Adicionar ao histórico
-            addToHistory(currentSignal);
-            
-            // Rolar para a seção de sinais
-            document.getElementById('signalCard').scrollIntoView({ 
-                behavior: 'smooth',
-                block: 'center'
-            });
-            
-            showNotification('Sinal gerado com sucesso!', 'success');
         }
         
-        // Atualizar display do sinal
+        // ==================== FUNÇÕES DE INTERFACE ====================
         function updateSignalDisplay() {
             const signal = currentSignal;
             const signalInfo = document.getElementById('signalInfo');
@@ -1087,12 +1147,14 @@
             `;
         }
         
-        // Iniciar contagem regressiva
         function startCountdown() {
+            // Limpa qualquer contagem anterior
+            if (countdownInterval) clearInterval(countdownInterval);
+            
             let timeLeft = 60;
             const countdownElement = document.getElementById('countdown');
             
-            const timer = setInterval(() => {
+            countdownInterval = setInterval(() => {
                 timeLeft--;
                 
                 const minutes = Math.floor(timeLeft / 60);
@@ -1100,7 +1162,6 @@
                 countdownElement.textContent = 
                     `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
                 
-                // Mudar cor quando estiver perto do fim
                 if (timeLeft <= 10) {
                     countdownElement.style.background = 'linear-gradient(to right, #f72585, #7209b7)';
                     countdownElement.style.webkitBackgroundClip = 'text';
@@ -1112,10 +1173,9 @@
                 }
                 
                 if (timeLeft <= 0) {
-                    clearInterval(timer);
+                    clearInterval(countdownInterval);
                     countdownElement.textContent = '00:00';
                     
-                    // Adicionar aviso de expiração
                     const signalInfo = document.getElementById('signalInfo');
                     signalInfo.innerHTML += `
                         <div style="background: rgba(247, 37, 133, 0.1); border-left: 4px solid var(--danger); padding: 15px; border-radius: 8px; margin-top: 20px;">
@@ -1131,7 +1191,6 @@
             }, 1000);
         }
         
-        // Abrir IQ Options
         function openIQ() {
             if (currentSignal) {
                 window.open('https://iqoption.com/traderoom', '_blank');
@@ -1142,41 +1201,28 @@
             }
         }
         
-        // Gerar novo sinal
         function generateNewSignal() {
             if (currentPrint) {
                 generateSignal();
             } else {
                 showNotification('Por favor, envie um print primeiro!', 'error');
-                document.getElementById('dropZone').scrollIntoView({ 
-                    behavior: 'smooth',
-                    block: 'center'
-                });
+                document.getElementById('dropZone').scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
         }
         
-        // Salvar sinal
         function saveSignal() {
             if (!currentSignal) return;
-            
-            // Adicionar aos favoritos (simulado)
             showNotification('Sinal salvo nos favoritos!', 'success');
         }
         
-        // Adicionar ao histórico
+        // ==================== HISTÓRICO ====================
         function addToHistory(signal) {
             history.unshift(signal);
-            
-            // Limitar histórico a 8 itens
-            if (history.length > 8) {
-                history.pop();
-            }
-            
+            if (history.length > 8) history.pop();
             updateHistoryDisplay();
             saveHistory();
         }
         
-        // Atualizar histórico
         function updateHistoryDisplay() {
             const historyGrid = document.getElementById('historyGrid');
             
@@ -1229,7 +1275,6 @@
             });
         }
         
-        // Salvar histórico
         function saveHistory() {
             try {
                 localStorage.setItem('iqSignalHistory', JSON.stringify(history));
@@ -1238,7 +1283,6 @@
             }
         }
         
-        // Carregar histórico
         function loadHistory() {
             try {
                 const saved = localStorage.getItem('iqSignalHistory');
@@ -1251,34 +1295,14 @@
             }
         }
         
-        // Carregar anúncio
+        // ==================== ANÚNCIOS ====================
         function loadAd() {
             const adContent = document.getElementById('adContent');
             const ads = [
-                {
-                    icon: 'fas fa-gem',
-                    title: 'Corretora Premium',
-                    text: 'Comece com R$100 de bônus',
-                    color: 'var(--success)'
-                },
-                {
-                    icon: 'fas fa-graduation-cap',
-                    title: 'Curso de Trading',
-                    text: 'Aprenda com especialistas',
-                    color: 'var(--primary)'
-                },
-                {
-                    icon: 'fas fa-users',
-                    title: 'Grupo VIP',
-                    text: 'Sinais exclusivos diários',
-                    color: 'var(--accent)'
-                },
-                {
-                    icon: 'fas fa-chart-pie',
-                    title: 'Análise Profissional',
-                    text: 'Relatórios semanais grátis',
-                    color: 'var(--warning)'
-                }
+                { icon: 'fas fa-gem', title: 'Corretora Premium', text: 'Comece com R$100 de bônus', color: 'var(--success)' },
+                { icon: 'fas fa-graduation-cap', title: 'Curso de Trading', text: 'Aprenda com especialistas', color: 'var(--primary)' },
+                { icon: 'fas fa-users', title: 'Grupo VIP', text: 'Sinais exclusivos diários', color: 'var(--accent)' },
+                { icon: 'fas fa-chart-pie', title: 'Análise Profissional', text: 'Relatórios semanais grátis', color: 'var(--warning)' }
             ];
             
             const randomAd = ads[Math.floor(Math.random() * ads.length)];
@@ -1291,58 +1315,30 @@
                 </div>
             `;
             
-            // Rotacionar anúncios
             setInterval(loadAd, 30000);
         }
         
-        // Mostrar modal de anúncio
         function showAdModal() {
-            // Simulação de modal de anúncio
             showNotification('Assista a um breve anúncio para continuar...', 'warning');
             
             setTimeout(() => {
-                // Continuar com a geração do sinal após "anúncio"
                 if (currentPrint) {
-                    // Continuar com a geração normal
-                    const randomAsset = assets[Math.floor(Math.random() * assets.length)];
-                    const directions = ['CALL', 'PUT'];
-                    const randomDirection = directions[Math.floor(Math.random() * directions.length)];
-                    const expiration = [1, 2, 5][Math.floor(Math.random() * 3)];
-                    
-                    currentSignal = {
-                        id: Date.now(),
-                        asset: randomAsset,
-                        direction: randomDirection,
-                        expiration: expiration,
-                        timestamp: new Date().toLocaleTimeString('pt-BR'),
-                        date: new Date().toLocaleDateString('pt-BR'),
-                        basedOnPrint: true,
-                        strength: ['ALTA', 'MÉDIA', 'BAIXA'][Math.floor(Math.random() * 3)],
-                        confidence: Math.floor(Math.random() * 30) + 70
-                    };
-                    
-                    document.getElementById('signalCard').style.display = 'block';
-                    document.getElementById('noSignal').style.display = 'none';
-                    updateSignalDisplay();
-                    startCountdown();
-                    addToHistory(currentSignal);
-                    
-                    showNotification('Anúncio concluído! Sinal gerado.', 'success');
+                    analyzeAndGenerateSignal(); // Após o anúncio, chama a análise real
+                } else {
+                    showNotification('Print não encontrado. Envie novamente.', 'error');
                 }
-            }, 3000); // Simula 3 segundos de anúncio
+            }, 3000);
         }
         
-        // Mostrar detalhes do anúncio
         function showAdDetails() {
             showNotification('Esta é uma demonstração de anúncio. Em produção, aqui teria um link afiliado.', 'warning');
         }
         
-        // Mostrar notificação
+        // ==================== NOTIFICAÇÕES ====================
         function showNotification(message, type = 'success') {
             const notification = document.getElementById('notification');
             const notificationMessage = document.getElementById('notificationMessage');
             
-            // Definir ícone baseado no tipo
             let icon = 'fas fa-check-circle';
             if (type === 'error') icon = 'fas fa-exclamation-circle';
             if (type === 'warning') icon = 'fas fa-exclamation-triangle';
@@ -1351,16 +1347,14 @@
             notification.querySelector('.notification-icon').innerHTML = `<i class="${icon}"></i>`;
             notificationMessage.textContent = message;
             
-            // Mostrar notificação
             notification.classList.add('show');
             
-            // Ocultar após 5 segundos
             setTimeout(() => {
                 notification.classList.remove('show');
             }, 5000);
         }
         
-        // Função para implantar o site
+        // Função de deploy (opcional, apenas informativa)
         function deploySite() {
             showNotification('Site pronto para implantação! Salve como index.html e faça upload no Netlify ou GitHub Pages.', 'success');
         }
